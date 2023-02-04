@@ -12,7 +12,7 @@ class ImageViewModel: ObservableObject {
 	let downloadManager: DownloadManager
 	var cancellable = Set<AnyCancellable>()
 	let url = URL(string: "https://picsum.photos/2000")
-
+	
 	@Published var downloadFinished: Bool = false
 	@Published var images = [UIImage?]()
 	
@@ -32,7 +32,7 @@ class ImageViewModel: ObservableObject {
 			fetchImageUsingCombine()
 			await fetchImageUsingAsync()
 		}
-
+		
 		DispatchQueue.main.async {
 			self.downloadFinished = true
 		}

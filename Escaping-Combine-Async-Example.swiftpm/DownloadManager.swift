@@ -15,15 +15,15 @@ class DownloadManager {
 		case missingURL
 		case missingData
 	}
-
+	
 	typealias HttpCallResponse = Result<UIImage?, Error>
-
+	
 	// MARK: - Properties
 	
 	var url: URL?
-
+	
 	// MARK: - Initialization
-
+	
 	init(url: URL?) {
 		self.url = url
 	}
@@ -39,12 +39,12 @@ class DownloadManager {
 		
 		URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
 			guard let self = self else { return }
-
+			
 			if let error = error {
 				print("Error in downloadImageUsingEscaping: \(String(describing: error.localizedDescription)).")
 				completion(.failure(error))
 			}
-
+			
 			guard let data = data else {
 				completion(.failure(GetError.missingData))
 				return

@@ -4,10 +4,12 @@ struct ContentView: View {
 	@StateObject private var viewModel = ImageViewModel()
 	@State var detailImage: DetailImage?
 
+	@State private var refreshed: Bool = false
+
 	var body: some View {
 		NavigationView {
 			Group {
-				if !viewModel.downloadFinished {
+				if !viewModel.downloadFinished, !refreshed {
 					VStack(spacing: 8) {
 						ProgressView()
 						Text("Loading...")
@@ -28,6 +30,13 @@ struct ContentView: View {
 						}
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 					}
+					.refreshable {
+						refreshed = true
+						Task {
+							await viewModel.downloadImages()
+							refreshed = false
+						}
+					}
 				}
 			}
 			.navigationBarTitleDisplayMode(.large)
@@ -35,14 +44,10 @@ struct ContentView: View {
 		}
 		.navigationViewStyle(.stack)
 
-		.refreshable {
+		.onAppear {
 			Task {
 				await viewModel.downloadImages()
 			}
-		}
-
-		.task {
-			await viewModel.downloadImages()
 		}
 		
 		.fullScreenCover(

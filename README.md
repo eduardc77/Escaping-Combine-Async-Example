@@ -23,12 +23,9 @@ An Escaping-Combine-Async Example that downloads images from the 'https://picsum
 
 ## Features:
 - Pull to refresh
-
-- Open Image Detail.
-
-- Zooming and panning the image.
-
-- Haptic feedback.
+- Open Image Detail
+- Zooming and panning the image
+- Haptic feedback
 
 
 

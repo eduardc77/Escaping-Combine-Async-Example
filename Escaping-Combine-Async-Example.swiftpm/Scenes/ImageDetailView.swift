@@ -20,6 +20,7 @@ struct ImageDetailView: View {
 	
 	@State private var animate: Bool = false
 	@State private var scale: CGFloat = 1.0
+	@State private var imageOffset: CGSize = .zero
 	@State private var impactOccurred: Bool = false
 
 	var body: some View {
@@ -79,14 +80,18 @@ private extension ImageDetailView {
 			.opacity(animate ? 1 : 0)
 			.onTapGesture(count: 2, perform: onImageDoubleTapped)
 
-			.withMagnificationGesture(scale: $scale, resets: false, minScale: minScale, maxScale: maxScale) {
+			.withMagnificationGesture(scale: $scale, resets: false, minScale: minScale, maxScale: maxScale) { scale in
 				if scale < minScale || scale > maxScale { impactOccurred = true }
 			}
-			.withRotationGesture(resets: true)
-			.withDragGesture(resets: scale <= 1 ? true : false)
+//			.withRotationGesture(resets: true)
+			.withDragGesture(offset: $imageOffset, resets: scale <= 1 ? true : false)
 		
 			.animation(.spring(), value: scale)
 			.withHaptic(onChangeOf: $impactOccurred)
+
+			.onChange(of: scale) { newValue in
+				imageOffset = .zero
+			}
 	}
 	
 	var controls: some View {

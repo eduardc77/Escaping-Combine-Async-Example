@@ -9,17 +9,19 @@ import SwiftUI
 
 struct MagnificationGestureViewModifier: ViewModifier {
 	@Binding var scale: CGFloat
-	var resets: Bool
-	var animation: Animation
-	var minScale: Double = 1.0
-	var maxScale: Double = 6.0
-	var onEnded: (() -> ())?
+	let resets: Bool
+	let animation: Animation
+	let minScale: Double
+	let maxScale: Double
+	let scaleMultiplier: CGFloat
+	let onEnded: ((_ scale: CGFloat) -> ())?
 
-	@State private var lastScale: CGFloat = 1
+	@State private var lastScale: CGFloat = 1.0
 
 	func body(content: Content) -> some View {
 		content
-			.scaleEffect(scale)
+			.scaleEffect(scale * scaleMultiplier)
+
 			.simultaneousGesture(
 				MagnificationGesture()
 					.onChanged { value in
@@ -28,7 +30,12 @@ struct MagnificationGestureViewModifier: ViewModifier {
 						lastScale = value
 					}
 					.onEnded { value in
-						onEnded?()
+						if !resets {
+							onEnded?(lastScale)
+						} else {
+							onEnded?(value - 1)
+						}
+
 						withAnimation(animation) {
 							if !resets {
 								scale = max(scale, minScale)
@@ -47,19 +54,21 @@ public extension View {
 	/// MagnificationGesture is added as a simultaneousGesture, to not interfere with other gestures Developer may add.
 	///
 	/// - Parameters:
-	///   - scale: Bind the scale to have access outside the view modifier.
+	///   - scale: Binds the scale to have access outside the view modifier.
 	///   - resets: If the View should reset to starting state onEnded.
 	///   - animation: The magnification animation.
-	///   - onEnded: The action to perform when this gesture’s value ends.
+	///   - scaleMultiplier: Used to scale the View while dragging.
+	///   - onEnded: The action to perform when this gesture’s value ends. The action closure’s parameter contains the gesture’s new value.
 	///
 	func withMagnificationGesture(
 		scale: Binding<CGFloat>,
-		resets: Bool = false,
+		resets: Bool = true,
 		animation: Animation = .spring(),
 		minScale: Double = 1.0,
 		maxScale: Double = 6.0,
-		onEnded: (() -> ())? = nil) -> some View {
-			modifier(MagnificationGestureViewModifier(scale: scale, resets: resets, animation: animation, onEnded: onEnded))
+		scaleMultiplier: CGFloat = 1,
+		onEnded: ((_ scale: CGFloat) -> ())? = nil) -> some View {
+			modifier(MagnificationGestureViewModifier(scale: scale, resets: resets, animation: animation, minScale: minScale, maxScale: maxScale, scaleMultiplier: scaleMultiplier, onEnded: onEnded))
 		}
 }
 
@@ -72,12 +81,12 @@ struct MagnificationGestureViewModifier_Previews: PreviewProvider {
 
 		var body: some View {
 			AsyncImageView(urlString: "https://picsum.photos/1000")
-
 				.withMagnificationGesture(scale: $scale, resets: false, animation: .spring())
 		}
 	}
 
 	static var previews: some View {
 		ExampleView()
+			.previewDevice("iPhone 14 Pro")
 	}
 }

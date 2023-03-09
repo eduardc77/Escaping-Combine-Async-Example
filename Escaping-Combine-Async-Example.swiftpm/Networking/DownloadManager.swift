@@ -58,7 +58,7 @@ class DownloadManager {
 	
 	///Downloads an image using Combine.
 	func downloadImageUsingCombine() -> AnyPublisher<UIImage?, Error> {
-		URLSession.shared.dataTaskPublisher(for: url ?? URL(string: "")!)
+		URLSession.shared.dataTaskPublisher(for: url!)
 			.map(responseHandler)
 			.mapError({ $0 })
 			.eraseToAnyPublisher()

@@ -9,53 +9,74 @@ import SwiftUI
 import Combine
 
 class ImageViewModel: ObservableObject {
-	let downloadManager: DownloadManager
+	var imageCache = ImageCache.getImageCache()
+	var downloadManager: DownloadManager
 	var cancellable = Set<AnyCancellable>()
-	let url = URL(string: "https://picsum.photos/2000")
-	
-	@Published var downloadFinished: Bool = false
-	@Published var images = [UIImage?]()
+	var urlString: String
+
+	@Published var image: Image?
+
+	var downloadMethod: DownloadMethod
 	
 	// MARK: - Initialization
 	
-	init() {
-		downloadManager = DownloadManager(url: url)
+	init(urlString: String) {
+		self.urlString = urlString
+		downloadManager = DownloadManager(url: URL(string: self.urlString))
+		downloadMethod = DownloadMethod(rawValue: Int.random(in: 1..<DownloadMethod.allCases.count)) ?? .asyncAwait
 	}
-	
-	func downloadImages() async {
-		DispatchQueue.main.async {
-			self.downloadFinished = false
-			self.images = []
-		}
-		for _ in 0...1 {
+
+	@MainActor
+	func downloadImage() async {
+		switch downloadMethod {
+		case .escaping:
 			fetchImageUsingEscaping()
+		case .combine:
 			fetchImageUsingCombine()
+		case .asyncAwait:
 			await fetchImageUsingAsync()
 		}
-		
-		DispatchQueue.main.async {
-			self.downloadFinished = true
-		}
 	}
+
+	func loadImageFromCache() -> Bool {
+		guard let cacheImage = imageCache.get(forKey: urlString) else {
+			return false
+		}
+		DispatchQueue.main.async {
+			self.image = Image(uiImage: cacheImage)
+		}
+
+		return true
+	}
+	
 	// MARK: - @Escaping
 	
-	func fetchImageUsingEscaping() {
+	private func fetchImageUsingEscaping() {
+		if loadImageFromCache() {
+			return
+		}
 		downloadManager.downloadImageUsingEscaping { [weak self] result in
 			guard let self = self else { return }
 			switch result {
 			case .success(let image):
 				DispatchQueue.main.async {
-					self.images.append(image)
+					guard let loadedImage = image else { return }
+					self.imageCache.set(forKey: self.urlString, image: loadedImage)
+					self.image = Image(uiImage: loadedImage)
 				}
 			case .failure(let error):
 				print("Error occurred while downloading image using escaping: \(error.localizedDescription).")
 			}
 		}
+
 	}
 	
 	// MARK: - Combine
 	
-	func fetchImageUsingCombine() {
+	private func fetchImageUsingCombine() {
+		if loadImageFromCache() {
+			return
+		}
 		downloadManager.downloadImageUsingCombine()
 			.receive(on: DispatchQueue.main)
 			.sink { completion in
@@ -64,27 +85,61 @@ class ImageViewModel: ObservableObject {
 				case .finished: break
 				}
 			} receiveValue: { [weak self] image in
-				self?.images.append(image)
+				DispatchQueue.main.async {
+					guard let self = self, let loadedImage = image else { return }
+					self.imageCache.set(forKey: self.urlString, image: loadedImage)
+					self.image = Image(uiImage: loadedImage)
+				}
 			}
 			.store(in: &cancellable)
-		
 	}
 	
 	// MARK: - Async/Await
 	
-	func fetchImageUsingAsync() async {
+	private func fetchImageUsingAsync() async {
+		if loadImageFromCache() {
+			return
+		}
 		do {
 			let image = try await downloadManager.downloadImageUsingAsync()
 			await MainActor.run {
-				self.images.append(image)
+				guard let loadedImage = image else { return }
+				self.imageCache.set(forKey: self.urlString, image: loadedImage)
+				self.image = Image(uiImage: loadedImage)
 			}
 		} catch {
 			print("Error occurred while downloading image using Async/Await \(error).")
 		}
+
 	}
 	
 	@ViewBuilder
-	var imageUsingAsyncImage: some View {
-		AsyncImageView(urlString: url?.absoluteString ?? "")
+	private var imageUsingAsyncImage: some View {
+		AsyncImageView(urlString: urlString)
+	}
+}
+
+enum DownloadMethod: Int, CaseIterable {
+	case escaping
+	case combine
+	case asyncAwait
+}
+
+class ImageCache {
+	var cache = NSCache<NSString, UIImage>()
+
+	func get(forKey: String) -> UIImage? {
+		return cache.object(forKey: NSString(string: forKey))
+	}
+
+	func set(forKey: String, image: UIImage) {
+		cache.setObject(image, forKey: NSString(string: forKey))
+	}
+}
+
+extension ImageCache {
+	private static var imageCache = ImageCache()
+	static func getImageCache() -> ImageCache {
+		return imageCache
 	}
 }

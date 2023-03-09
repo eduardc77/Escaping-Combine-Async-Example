@@ -1,58 +1,38 @@
 import SwiftUI
 
 struct ContentView: View {
-	@StateObject private var viewModel = ImageViewModel()
-	@State var detailImage: DetailImage?
+	@State private var detailImage: DetailImage?
+	@State private var scrollOffset: CGPoint = .zero
 
-	@State private var refreshed: Bool = false
+	@State var urlStrings = ["https://picsum.photos/1000", "https://picsum.photos/1000", "https://picsum.photos/1000"]
 
 	var body: some View {
-		NavigationView {
-			Group {
-				if !viewModel.downloadFinished, !refreshed {
-					VStack(spacing: 8) {
-						ProgressView()
-						Text("Loading...")
-							.foregroundColor(.secondary)
-					}
-					.frame(maxWidth: .infinity, maxHeight: .infinity)
-					.background(.ultraThinMaterial)
+		VStack {
+			OffsetObservingScrollView(offset: $scrollOffset) {
+				
+				LazyStack(spacing: 24) {
+					ForEach(Array(zip(urlStrings.indices, urlStrings)), id: \.0) { index, image in
 
-				} else {
-					ScrollView {
-						ForEach(Array(zip(viewModel.images.indices, viewModel.images)), id: \.0) { index, image in
-							imageView(with: image)
-								.padding()
+						ImageView(viewModel: ImageViewModel(urlString: urlStrings[index]), index: index, detailImage: $detailImage)
 
-								.onTapGesture {
-									detailImage = DetailImage(title: "Image \(index + 1)", image: Image(uiImage: image ?? UIImage()))
+							.onChange(of: scrollOffset) { position in
+								if position.y > 0.96 {
+									urlStrings.append("https://picsum.photos/id/\(index + 1)/1000")
 								}
-						}
-						.frame(maxWidth: .infinity, maxHeight: .infinity)
-					}
-					.refreshable {
-						refreshed = true
-						Task {
-							await viewModel.downloadImages()
-							refreshed = false
-						}
+							}
 					}
 				}
+				.frame(maxWidth: .infinity)
+				.padding()
 			}
-			.navigationBarTitleDisplayMode(.large)
-			.navigationTitle("Images For You")
 		}
-		.navigationViewStyle(.stack)
+		.navigationTitle("Images For You")
 
-		.onAppear {
-			Task {
-				await viewModel.downloadImages()
-			}
-		}
-		
 		.fullScreenCover(
 			item: $detailImage,
-			content: { _ in ImageDetailView(detailImage: $detailImage) }
+			content: { _ in
+				ImageDetailView(detailImage: $detailImage)
+			}
 		)
 	}
 }
@@ -61,16 +41,8 @@ struct ContentView: View {
 
 private extension ContentView {
 	@ViewBuilder
-	func imageView(with image: UIImage?) -> some View {
-		if let image = image {
-			Image(uiImage: image)
-				.resizable()
-				.scaledToFit()
-				.frame(height: 200)
-				.cornerRadius(8)
-		} else {
-			Color.secondary
-		}
+	func imageView(with image: UIImage?, at index: Int) -> some View {
+
 	}
 }
 

@@ -19,7 +19,7 @@
 
 
 ## Description
-An Escaping-Combine-Async Example that downloads images from the 'https://picsum.photos' url using @escaping, combine and async/await methods of fetching data. 
+An Escaping-Combine-Async Example that downloads images from the 'https://picsum.photos' url using @escaping, combine and async/await methods of fetching data. And allowing opening photos full screen with zooming and panning gesture support.
 
 ## Features:
 - Pull to refresh
